@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.git/
+README.md
+data/
+synthetic/
+test_api.py
+model_trainer.py
+monitoring.py
