@@ -2,20 +2,11 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/predict.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/health.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/metrics.py",
-      "use": "@vercel/python"
+      "src": "api/*.py",
+      "use": "@vercel/python",
+      "config": {
+        "runtime": "python3.9"
+      }
     },
     {
       "src": "templates/dashboard.html",
@@ -42,6 +33,10 @@
     {
       "src": "/model/metrics",
       "dest": "/api/metrics.py"
+    },
+    {
+      "src": "/model/recent_predictions",
+      "dest": "/api/recent_predictions.py"
     }
   ]
 }
