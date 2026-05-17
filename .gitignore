@@ -1,0 +1,264 @@
+# ===========================================
+# Python Virtual Environments (CRITICAL!)
+# ===========================================
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.env/
+.envrc
+
+# ===========================================
+# Python Cache Files
+# ===========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.pyc
+*.pyo
+*.pyd
+
+# ===========================================
+# Build & Distribution
+# ===========================================
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-wheel-metadata/
+
+# ===========================================
+# Testing & Coverage
+# ===========================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.log
+tests/__pycache__/
+tests/*.pyc
+test_*.pyc
+.pytest_cache/
+
+# ===========================================
+# Jupyter Notebook
+# ===========================================
+.ipynb_checkpoints/
+*.ipynb
+
+# ===========================================
+# Data Files (Large datasets)
+# ===========================================
+*.csv
+*.xlsx
+*.xls
+*.json
+*.db
+*.sqlite
+*.sqlite3
+data/
+synthetic/
+*.parquet
+*.feather
+*.h5
+*.hdf5
+*.npz
+*.npy
+
+# ===========================================
+# Model Files (Large binary files)
+# ===========================================
+*.pkl
+*.joblib
+*.sav
+models/*.pkl
+models/*.joblib
+*.h5
+*.keras
+*.pb
+*.onnx
+*.pt
+*.pth
+
+# ===========================================
+# Logs & Databases
+# ===========================================
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
+*.sql
+*.sqlite
+
+# ===========================================
+# Environment & Config
+# ===========================================
+.env
+.env.*
+!.env.example
+config.local.*
+*.ini
+*.cfg
+*.conf
+.secrets
+
+# ===========================================
+# IDE & Editor Files
+# ===========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.desktop.ini
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+directory-layout.json
+.venv/
+
+# ===========================================
+# OS Generated Files
+# ===========================================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.bak
+*.tmp
+*.temp
+*.orig
+*.rej
+
+# ===========================================
+# Vercel/Deployment Specific
+# ===========================================
+.vercel/
+.vercel/output/
+vercel.json.backup
+*.deploy.tar.gz
+
+# ===========================================
+# Project Specific
+# ===========================================
+# Local development files
+*.local.py
+*.dev.py
+config_dev.py
+
+# Reports
+*.html
+!templates/*.html  # Keep your dashboard template
+
+# Documentation (unless needed)
+*.md
+!README.md  # Keep README if you have one
+
+# Backup files
+*.backup
+*.old
+*.orig
+
+# Monitoring logs (from your app)
+logs/
+alerts.log
+predictions.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS metadata
+.directory
+*.AppleDouble
+.LSOverride
+
+# Windows
+ehthumbs.db
+Thumbs.db
+*.cab
+*.msi
+*.msm
+*.msp
+
+# Linux
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+
+# ===========================================
+# Package Manager Files
+# ===========================================
+# pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# poetry
+poetry.lock
+poetry.toml
+
+# pipenv
+Pipfile
+Pipfile.lock
+
+# pdm
+.pdm.toml
+pdm.lock
+
+# ===========================================
+# Docker (if you use it)
+# ===========================================
+docker-compose.override.yml
+.dockerignore
+*.dockerfile
+Dockerfile
+docker-compose*.yml
+
+# ===========================================
+# Sensitive Information
+# ===========================================
+*.key
+*.pem
+*.crt
+*.p12
+.secrets/
+.credentials/
+secrets/
+credentials/
+*.secret

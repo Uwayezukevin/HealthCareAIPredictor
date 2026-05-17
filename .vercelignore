@@ -1,11 +1,53 @@
+# Virtual environments (THIS IS HUGE - your .venv folder is likely >200MB alone!)
 .venv/
+venv/
+env/
+ENV/
+
+# Python cache files
 __pycache__/
 *.pyc
-.env
+*.pyo
+*.pyd
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
 .git/
-README.md
+.gitignore
+
+# Local data and models (but keep the actual model file)
 data/
 synthetic/
+*.csv
+*.log
+
+# Testing files
 test_api.py
-model_trainer.py
-monitoring.py
+test_*.py
+*/test_*.py
+tests/
+
+# Documentation
+*.md
+README.md
+
+# Local environment files
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node modules (if any)
+node_modules/
+
+# Already have requirements, no need to send these
+pyproject.toml
+Pipfile
+Pipfile.lock

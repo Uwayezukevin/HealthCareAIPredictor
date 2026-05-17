@@ -2,41 +2,31 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/*.py",
-      "use": "@vercel/python",
-      "config": {
-        "runtime": "python3.9"
-      }
-    },
-    {
-      "src": "templates/dashboard.html",
-      "use": "@vercel/static"
+      "src": "api/index.py",
+      "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/",
-      "dest": "/templates/dashboard.html"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "/health",
-      "dest": "/api/health.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/predict",
-      "dest": "/api/predict.py"
+      "dest": "/api/index.py"
     },
     {
-      "src": "/model/metrics",
-      "dest": "/api/metrics.py"
+      "src": "/health",
+      "dest": "/api/index.py"
     },
     {
-      "src": "/model/recent_predictions",
-      "dest": "/api/recent_predictions.py"
+      "src": "/(.*)",
+      "dest": "/api/index.py"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.py": {
+      "excludeFiles": "{.venv/**,venv/**,__pycache__/**,*.pyc,.git/**,data/**,synthetic/**,tests/**,test_*.py,*.log}"
+    }
+  }
 }
