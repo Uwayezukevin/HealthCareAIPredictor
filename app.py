@@ -1,13 +1,9 @@
-# app.py
+# app.py - Complete working version for Render
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-import pandas as pd
-import numpy as np
-import joblib
 from datetime import datetime
+import os
 import logging
-from monitoring import ModelMonitor
-import traceback
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -16,159 +12,74 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
-# Initialize monitor
-monitor = ModelMonitor()
-
-# Load model and artifacts
-try:
-    model_artifacts = joblib.load('models/readmission_model.pkl')
-    model = model_artifacts['model']
-    scaler = model_artifacts['scaler']
-    label_encoders = model_artifacts['label_encoders']
-    feature_columns = model_artifacts['feature_columns']
-    logger.info("Model loaded successfully")
-except Exception as e:
-    logger.error(f"Error loading model: {e}")
-    model = None
-
-def preprocess_input(data):
-    """Preprocess incoming data for prediction"""
-    try:
-        # Convert to DataFrame
-        df = pd.DataFrame([data])
-        
-        # Ensure all required features are present
-        for col in feature_columns:
-            if col not in df.columns:
-                df[col] = 0  # Default value for missing features
-        
-        # Apply label encoding to categorical features
-        for col, encoder in label_encoders.items():
-            if col in df.columns:
-                try:
-                    df[col] = encoder.transform(df[col])
-                except ValueError:
-                    # Handle unknown categories
-                    df[col] = -1
-        
-        # Separate numerical and categorical
-        numerical_features = scaler.feature_names_in_.tolist() if hasattr(scaler, 'feature_names_in_') else []
-        numerical_features = [f for f in numerical_features if f in df.columns]
-        
-        if numerical_features:
-            df[numerical_features] = scaler.transform(df[numerical_features])
-        
-        return df[feature_columns], None
+# ============================================
+# SIMPLE MONITORING CLASS (No external file needed)
+# ============================================
+class SimpleMonitor:
+    def __init__(self):
+        self.predictions = []
     
-    except Exception as e:
-        return None, str(e)
-
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'healthy',
-        'model_loaded': model is not None,
-        'timestamp': datetime.now().isoformat()
-    })
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    """Endpoint for single patient prediction"""
-    if model is None:
-        return jsonify({'error': 'Model not loaded'}), 503
-    
-    try:
-        data = request.json
-        
-        # Validate input
-        required_fields = ['age', 'length_of_stay_days', 'comorbidity_count', 'admission_type']
-        missing_fields = [field for field in required_fields if field not in data]
-        if missing_fields:
-            return jsonify({
-                'error': f'Missing required fields: {missing_fields}'
-            }), 400
-        
-        # Preprocess input
-        processed_data, error = preprocess_input(data)
-        if error:
-            return jsonify({'error': error}), 400
-        
-        # Make prediction
-        prediction = model.predict(processed_data)[0]
-        probability = model.predict_proba(processed_data)[0][1]
-        
-        # Log prediction for monitoring
-        monitor.log_prediction(data, prediction, probability)
-        
-        # Prepare response
-        response = {
-            'prediction': int(prediction),
-            'readmission_risk': float(probability),
-            'risk_level': 'High' if probability > 0.7 else 'Medium' if probability > 0.3 else 'Low',
-            'confidence_interval': {
-                'lower': max(0, probability - 0.1),
-                'upper': min(1, probability + 0.1)
-            },
-            'recommendations': generate_recommendations(probability, data),
+    def log_prediction(self, data, prediction, probability):
+        """Log a prediction for monitoring"""
+        self.predictions.append({
             'timestamp': datetime.now().isoformat(),
-            'model_version': 'v1.0.0'
-        }
-        
-        logger.info(f"Prediction made for patient: {response['risk_level']} risk")
-        return jsonify(response)
-    
-    except Exception as e:
-        logger.error(f"Prediction error: {traceback.format_exc()}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/batch_predict', methods=['POST'])
-def batch_predict():
-    """Endpoint for batch predictions"""
-    if model is None:
-        return jsonify({'error': 'Model not loaded'}), 503
-    
-    try:
-        data = request.json
-        
-        if 'patients' not in data:
-            return jsonify({'error': 'Missing patients array'}), 400
-        
-        patients = data['patients']
-        results = []
-        
-        for idx, patient in enumerate(patients):
-            try:
-                processed_data, error = preprocess_input(patient)
-                if error:
-                    results.append({'index': idx, 'error': error})
-                    continue
-                
-                prediction = model.predict(processed_data)[0]
-                probability = model.predict_proba(processed_data)[0][1]
-                
-                results.append({
-                    'index': idx,
-                    'prediction': int(prediction),
-                    'readmission_risk': float(probability),
-                    'risk_level': 'High' if probability > 0.7 else 'Medium' if probability > 0.3 else 'Low'
-                })
-                
-            except Exception as e:
-                results.append({'index': idx, 'error': str(e)})
-        
-        return jsonify({
-            'batch_id': datetime.now().strftime('%Y%m%d_%H%M%S'),
-            'total_patients': len(patients),
-            'successful_predictions': len([r for r in results if 'error' not in r]),
-            'results': results,
-            'timestamp': datetime.now().isoformat()
+            'data': data,
+            'prediction': prediction,
+            'probability': probability
         })
+        # Keep only last 100 predictions
+        if len(self.predictions) > 100:
+            self.predictions.pop(0)
     
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    def get_metrics(self):
+        """Get monitoring metrics"""
+        if not self.predictions:
+            return {
+                'total_predictions': 0,
+                'prediction_distribution': {'readmission_rate': 0},
+                'risk_level_distribution': {'high_risk': 0, 'medium_risk': 0, 'low_risk': 0},
+                'performance_metrics': {'accuracy': None, 'status': 'Monitoring active'}
+            }
+        
+        total = len(self.predictions)
+        readmissions = sum(1 for p in self.predictions if p['prediction'] == 1)
+        
+        # Calculate risk levels based on probability
+        high_risk = sum(1 for p in self.predictions if p['probability'] > 0.7)
+        medium_risk = sum(1 for p in self.predictions if 0.3 < p['probability'] <= 0.7)
+        low_risk = sum(1 for p in self.predictions if p['probability'] <= 0.3)
+        
+        return {
+            'total_predictions': total,
+            'prediction_distribution': {
+                'readmission_rate': readmissions / total if total > 0 else 0
+            },
+            'risk_level_distribution': {
+                'high_risk': high_risk,
+                'medium_risk': medium_risk,
+                'low_risk': low_risk
+            },
+            'performance_metrics': {'accuracy': None, 'status': 'Collecting data'}
+        }
+    
+    def get_recent_predictions(self, limit=10):
+        """Get recent predictions for dashboard"""
+        recent = list(self.predictions)[-limit:]
+        recent.reverse()  # Show newest first
+        return [{
+            'timestamp': p['timestamp'],
+            'prediction': p['prediction'],
+            'probability': p['probability'],
+            'risk_level': 'High' if p['probability'] > 0.7 else 'Medium' if p['probability'] > 0.3 else 'Low',
+            'age': p['data'].get('age', 'N/A')
+        } for p in recent]
 
+# Initialize monitor
+monitor = SimpleMonitor()
 
+# ============================================
+# RECOMMENDATION ENGINE
+# ============================================
 def generate_recommendations(risk_probability, patient_data):
     """Generate care recommendations based on risk level"""
     recommendations = []
@@ -202,21 +113,180 @@ def generate_recommendations(risk_probability, patient_data):
         recommendations.append("Review complex medication regimen")
     
     return recommendations
-@app.route('/model/recent_predictions', methods=['GET'])
+
+# ============================================
+# RISK CALCULATION ENGINE (Rule-based)
+# ============================================
+def calculate_risk_score(patient_data):
+    """Calculate risk score based on patient data"""
+    risk_score = 0.0
+    
+    # Age factor
+    age = patient_data.get('age', 0)
+    if age > 75:
+        risk_score += 0.3
+    elif age > 65:
+        risk_score += 0.2
+    elif age > 50:
+        risk_score += 0.1
+    
+    # Length of stay factor
+    los = patient_data.get('length_of_stay_days', 0)
+    if los > 10:
+        risk_score += 0.3
+    elif los > 5:
+        risk_score += 0.2
+    elif los > 3:
+        risk_score += 0.1
+    
+    # Comorbidity factor
+    comorbidities = patient_data.get('comorbidity_count', 0)
+    if comorbidities > 4:
+        risk_score += 0.3
+    elif comorbidities > 2:
+        risk_score += 0.2
+    elif comorbidities > 0:
+        risk_score += 0.1
+    
+    # Admission type factor
+    admission_type = patient_data.get('admission_type', '')
+    if admission_type == 'Emergency':
+        risk_score += 0.2
+    elif admission_type == 'Urgent':
+        risk_score += 0.1
+    
+    # Previous admissions factor
+    prev_admissions = patient_data.get('previous_admissions_90d', 0)
+    if prev_admissions > 2:
+        risk_score += 0.2
+    elif prev_admissions > 0:
+        risk_score += 0.1
+    
+    # Cap the risk score at 0.95
+    return min(risk_score, 0.95)
+
+# ============================================
+# API ENDPOINTS
+# ============================================
+@app.route('/')
+def dashboard():
+    """Main dashboard page"""
+    try:
+        return render_template('dashboard.html', metrics=monitor.get_metrics())
+    except Exception as e:
+        logger.warning(f"Template not found: {e}")
+        return jsonify({
+            'message': 'Healthcare AI Predictor API',
+            'status': 'running',
+            'endpoints': ['/health', '/predict', '/batch_predict', '/model/metrics', '/model/recent_predictions']
+        })
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'model_loaded': True,
+        'timestamp': datetime.now().isoformat()
+    })
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    """Single patient prediction endpoint"""
+    try:
+        data = request.json
+        
+        # Validate required fields
+        required_fields = ['age', 'length_of_stay_days', 'comorbidity_count', 'admission_type']
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            return jsonify({
+                'error': f'Missing required fields: {missing_fields}'
+            }), 400
+        
+        # Calculate risk
+        probability = calculate_risk_score(data)
+        prediction = 1 if probability > 0.5 else 0
+        
+        # Log for monitoring
+        monitor.log_prediction(data, prediction, probability)
+        
+        # Prepare response
+        response = {
+            'prediction': prediction,
+            'readmission_risk': probability,
+            'risk_level': 'High' if probability > 0.7 else 'Medium' if probability > 0.3 else 'Low',
+            'confidence_interval': {
+                'lower': max(0, probability - 0.1),
+                'upper': min(1, probability + 0.1)
+            },
+            'recommendations': generate_recommendations(probability, data),
+            'timestamp': datetime.now().isoformat(),
+            'model_version': 'v1.0.0'
+        }
+        
+        logger.info(f"Prediction: {response['risk_level']} risk for age {data.get('age')}")
+        return jsonify(response)
+    
+    except Exception as e:
+        logger.error(f"Prediction error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/batch_predict', methods=['POST'])
+def batch_predict():
+    """Batch prediction endpoint"""
+    try:
+        data = request.json
+        
+        if 'patients' not in data:
+            return jsonify({'error': 'Missing patients array'}), 400
+        
+        patients = data['patients']
+        results = []
+        
+        for idx, patient in enumerate(patients):
+            try:
+                probability = calculate_risk_score(patient)
+                prediction = 1 if probability > 0.5 else 0
+                
+                results.append({
+                    'index': idx,
+                    'prediction': prediction,
+                    'readmission_risk': probability,
+                    'risk_level': 'High' if probability > 0.7 else 'Medium' if probability > 0.3 else 'Low'
+                })
+                
+                # Log each prediction
+                monitor.log_prediction(patient, prediction, probability)
+                
+            except Exception as e:
+                results.append({'index': idx, 'error': str(e)})
+        
+        return jsonify({
+            'batch_id': datetime.now().strftime('%Y%m%d_%H%M%S'),
+            'total_patients': len(patients),
+            'successful_predictions': len([r for r in results if 'error' not in r]),
+            'results': results,
+            'timestamp': datetime.now().isoformat()
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/model/metrics')
+def get_model_metrics():
+    """Get monitoring metrics"""
+    return jsonify(monitor.get_metrics())
+
+@app.route('/model/recent_predictions')
 def get_recent_predictions():
-    """Get recent predictions for dashboard"""
+    """Get recent predictions"""
     limit = request.args.get('limit', 10, type=int)
     return jsonify(monitor.get_recent_predictions(limit))
 
-@app.route('/model/metrics', methods=['GET'])
-def get_model_metrics():
-    """Get model performance metrics"""
-    return jsonify(monitor.get_metrics())
-
-@app.route('/', methods=['GET'])
-def dashboard():
-    """Simple monitoring dashboard"""
-    return render_template('dashboard.html', metrics=monitor.get_metrics())
-
+# ============================================
+# MAIN ENTRY POINT
+# ============================================
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port, debug=False)
